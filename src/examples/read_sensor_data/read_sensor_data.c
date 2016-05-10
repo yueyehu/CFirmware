@@ -55,10 +55,11 @@ __EXPORT int read_sensor_data_main(int argc, char *argv[]);
 int read_sensor_data_main(int argc, char *argv[])
 {
     int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
+	orb_set_interval(sensor_sub_fd, 1000);
     px4_pollfd_struct_t fds[]={
         {.fd = sensor_sub_fd,.events=POLLIN},
     };
-    for(int i = 0; i<5;i++){
+    while(1){
         int poll_ret = px4_poll(fds,1,1000);
         if(poll_ret>0){
             if(fds[0].revents & POLLIN){
