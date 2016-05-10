@@ -100,18 +100,18 @@
  */
 extern "C" __EXPORT int mc_pos_simple_control_main(int argc, char *argv[]);
 
-class MulticopterPositionControl : public control::SuperBlock
+class MulticopterPositionSimpleControl : public control::SuperBlock
 {
 public:
     /**
      * Constructor
      */
-    MulticopterPositionControl();
+    MulticopterPositionSimpleControl();
 
     /**
      * Destructor, also kills task.
      */
-    ~MulticopterPositionControl();
+    ~MulticopterPositionSimpleControl();
 
     /**
      * Start task.
@@ -335,13 +335,13 @@ private:
     void		task_main();
 };
 
-namespace pos_control
+namespace pos_control_simple
 {
 
-MulticopterPositionControl	*g_control;
+MulticopterPositionSimpleControl	*g_control;
 }
 
-MulticopterPositionControl::MulticopterPositionControl() :
+MulticopterPositionSimpleControl::MulticopterPositionSimpleControl() :
     SuperBlock(NULL, "MPC"),
     _task_should_exit(false),
     _control_task(-1),
@@ -419,42 +419,42 @@ MulticopterPositionControl::MulticopterPositionControl() :
 
     _R.identity();
 
-    _params_handles.thr_min		= param_find("MPC_THR_MIN");
-    _params_handles.thr_max		= param_find("MPC_THR_MAX");
-    _params_handles.thr_hover	= param_find("MPC_THR_HOVER");
-    _params_handles.alt_ctl_dz	= param_find("MPC_ALTCTL_DZ");
-    _params_handles.alt_ctl_dy	= param_find("MPC_ALTCTL_DY");
-    _params_handles.z_p		= param_find("MPC_Z_P");
-    _params_handles.z_vel_p		= param_find("MPC_Z_VEL_P");
-    _params_handles.z_vel_i		= param_find("MPC_Z_VEL_I");
-    _params_handles.z_vel_d		= param_find("MPC_Z_VEL_D");
-    _params_handles.z_vel_max	= param_find("MPC_Z_VEL_MAX");
-    _params_handles.z_ff		= param_find("MPC_Z_FF");
-    _params_handles.xy_p		= param_find("MPC_XY_P");
-    _params_handles.xy_vel_p	= param_find("MPC_XY_VEL_P");
-    _params_handles.xy_vel_i	= param_find("MPC_XY_VEL_I");
-    _params_handles.xy_vel_d	= param_find("MPC_XY_VEL_D");
-    _params_handles.xy_vel_max	= param_find("MPC_XY_VEL_MAX");
-    _params_handles.xy_ff		= param_find("MPC_XY_FF");
-    _params_handles.tilt_max_air	= param_find("MPC_TILTMAX_AIR");
-    _params_handles.land_speed	= param_find("MPC_LAND_SPEED");
-    _params_handles.tko_speed	= param_find("MPC_TKO_SPEED");
-    _params_handles.tilt_max_land	= param_find("MPC_TILTMAX_LND");
-    _params_handles.man_roll_max = param_find("MPC_MAN_R_MAX");
-    _params_handles.man_pitch_max = param_find("MPC_MAN_P_MAX");
-    _params_handles.man_yaw_max = param_find("MPC_MAN_Y_MAX");
-    _params_handles.global_yaw_max = param_find("MC_YAWRATE_MAX");
-    _params_handles.mc_att_yaw_p = param_find("MC_YAW_P");
-    _params_handles.hold_xy_dz = param_find("MPC_HOLD_XY_DZ");
-    _params_handles.hold_max_xy = param_find("MPC_HOLD_MAX_XY");
-    _params_handles.hold_max_z = param_find("MPC_HOLD_MAX_Z");
-    _params_handles.acc_hor_max = param_find("MPC_ACC_HOR_MAX");
+    _params_handles.thr_min		= param_find("MPC_THR_MIN_S");
+    _params_handles.thr_max		= param_find("MPC_THR_MAX_S");
+    _params_handles.thr_hover	= param_find("MPC_THR_HOVER_S");
+    _params_handles.alt_ctl_dz	= param_find("MPC_ALTCTL_DZ_S");
+    _params_handles.alt_ctl_dy	= param_find("MPC_ALTCTL_DY_S");
+    _params_handles.z_p		= param_find("MPC_Z_P_S");
+    _params_handles.z_vel_p		= param_find("MPC_Z_VEL_P_S");
+    _params_handles.z_vel_i		= param_find("MPC_Z_VEL_I_S");
+    _params_handles.z_vel_d		= param_find("MPC_Z_VEL_D_S");
+    _params_handles.z_vel_max	= param_find("MPC_Z_VEL_MAX_S");
+    _params_handles.z_ff		= param_find("MPC_Z_FF_S");
+    _params_handles.xy_p		= param_find("MPC_XY_P_S");
+    _params_handles.xy_vel_p	= param_find("MPC_XY_VEL_P_S");
+    _params_handles.xy_vel_i	= param_find("MPC_XY_VEL_I_S");
+    _params_handles.xy_vel_d	= param_find("MPC_XY_VEL_D_S");
+    _params_handles.xy_vel_max	= param_find("MPC_XY_VEL_MAX_S");
+    _params_handles.xy_ff		= param_find("MPC_XY_FF_S");
+    _params_handles.tilt_max_air	= param_find("MPC_TILTMAX_AIR_S");
+    _params_handles.land_speed	= param_find("MPC_LAND_SPEED_S");
+    _params_handles.tko_speed	= param_find("MPC_TKO_SPEED_S");
+    _params_handles.tilt_max_land	= param_find("MPC_TILTMAX_LND_S");
+    _params_handles.man_roll_max = param_find("MPC_MAN_R_MAX_S");
+    _params_handles.man_pitch_max = param_find("MPC_MAN_P_MAX_S");
+    _params_handles.man_yaw_max = param_find("MPC_MAN_Y_MAX_S");
+    _params_handles.global_yaw_max = param_find("MC_YAWRATE_MAX_S");
+    _params_handles.mc_att_yaw_p = param_find("MC_YAW_P_S");
+    _params_handles.hold_xy_dz = param_find("MPC_HOLD_XY_DZ_S");
+    _params_handles.hold_max_xy = param_find("MPC_HOLD_MAX_XY_S");
+    _params_handles.hold_max_z = param_find("MPC_HOLD_MAX_Z_S");
+    _params_handles.acc_hor_max = param_find("MPC_ACC_HOR_MAX_S");
 
     /* fetch initial parameter values */
     parameters_update(true);
 }
 
-MulticopterPositionControl::~MulticopterPositionControl()
+MulticopterPositionSimpleControl::~MulticopterPositionSimpleControl()
 {
     if (_control_task != -1) {
         /* task wakes up every 100ms or so at the longest */
@@ -475,11 +475,11 @@ MulticopterPositionControl::~MulticopterPositionControl()
         } while (_control_task != -1);
     }
 
-    pos_control::g_control = nullptr;
+    pos_control_simple::g_control = nullptr;
 }
 
 int
-MulticopterPositionControl::parameters_update(bool force)
+MulticopterPositionSimpleControl::parameters_update(bool force)
 {
     bool updated;
     struct parameter_update_s param_upd;
@@ -575,7 +575,7 @@ MulticopterPositionControl::parameters_update(bool force)
 }
 
 void
-MulticopterPositionControl::poll_subscriptions()
+MulticopterPositionSimpleControl::poll_subscriptions()
 {
     bool updated;
 
@@ -640,7 +640,7 @@ MulticopterPositionControl::poll_subscriptions()
 }
 
 float
-MulticopterPositionControl::scale_control(float ctl, float end, float dz, float dy)
+MulticopterPositionSimpleControl::scale_control(float ctl, float end, float dz, float dy)
 {
     if (ctl > dz) {
         return dy + (ctl - dz) * (1.0f - dy) / (end - dz);
@@ -654,7 +654,7 @@ MulticopterPositionControl::scale_control(float ctl, float end, float dz, float 
 }
 
 float
-MulticopterPositionControl::throttle_curve(float ctl, float ctr)
+MulticopterPositionSimpleControl::throttle_curve(float ctl, float ctr)
 {
     /* piecewise linear mapping: 0:ctr -> 0:0.5
      * and ctr:1 -> 0.5:1 */
@@ -667,13 +667,13 @@ MulticopterPositionControl::throttle_curve(float ctl, float ctr)
 }
 
 void
-MulticopterPositionControl::task_main_trampoline(int argc, char *argv[])
+MulticopterPositionSimpleControl::task_main_trampoline(int argc, char *argv[])
 {
-    pos_control::g_control->task_main();
+    pos_control_simple::g_control->task_main();
 }
 
 void
-MulticopterPositionControl::update_ref()
+MulticopterPositionSimpleControl::update_ref()
 {
     if (_local_pos.ref_timestamp != _ref_timestamp) {
         double lat_sp, lon_sp;
@@ -700,7 +700,7 @@ MulticopterPositionControl::update_ref()
 }
 
 void
-MulticopterPositionControl::reset_pos_sp()
+MulticopterPositionSimpleControl::reset_pos_sp()
 {
     if (_reset_pos_sp) {
         _reset_pos_sp = false;
@@ -715,7 +715,7 @@ MulticopterPositionControl::reset_pos_sp()
 }
 
 void
-MulticopterPositionControl::reset_alt_sp()
+MulticopterPositionSimpleControl::reset_alt_sp()
 {
     if (_reset_alt_sp) {
         _reset_alt_sp = false;
@@ -725,7 +725,7 @@ MulticopterPositionControl::reset_alt_sp()
 }
 
 void
-MulticopterPositionControl::limit_pos_sp_offset()
+MulticopterPositionSimpleControl::limit_pos_sp_offset()
 {
     math::Vector<3> pos_sp_offs;
     pos_sp_offs.zero();
@@ -748,7 +748,7 @@ MulticopterPositionControl::limit_pos_sp_offset()
 }
 
 void
-MulticopterPositionControl::control_manual(float dt)
+MulticopterPositionSimpleControl::control_manual(float dt)
 {
     math::Vector<3> req_vel_sp; // X,Y in local frame and Z in global (D), in [-1,1] normalized range
     req_vel_sp.zero();
@@ -847,7 +847,7 @@ MulticopterPositionControl::control_manual(float dt)
 }
 
 void
-MulticopterPositionControl::control_offboard(float dt)
+MulticopterPositionSimpleControl::control_offboard(float dt)
 {
     bool updated;
     orb_check(_pos_sp_triplet_sub, &updated);
@@ -902,7 +902,7 @@ MulticopterPositionControl::control_offboard(float dt)
 }
 
 bool
-MulticopterPositionControl::cross_sphere_line(const math::Vector<3> &sphere_c, float sphere_r,
+MulticopterPositionSimpleControl::cross_sphere_line(const math::Vector<3> &sphere_c, float sphere_r,
         const math::Vector<3> line_a, const math::Vector<3> line_b, math::Vector<3> &res)
 {
     /* project center of sphere on line */
@@ -926,7 +926,7 @@ MulticopterPositionControl::cross_sphere_line(const math::Vector<3> &sphere_c, f
     }
 }
 
-void MulticopterPositionControl::control_auto(float dt)
+void MulticopterPositionSimpleControl::control_auto(float dt)
 {
     /* reset position setpoint on AUTO mode activation or when reentering MC mode */
     if (!_mode_auto || _vehicle_status.in_transition_mode || !_vehicle_status.is_rotary_wing) {
@@ -1122,7 +1122,7 @@ void MulticopterPositionControl::control_auto(float dt)
 }
 
 void
-MulticopterPositionControl::task_main()
+MulticopterPositionSimpleControl::task_main()
 {
 
     _mavlink_fd = px4_open(MAVLINK_LOG_DEVICE, 0);
@@ -1922,16 +1922,16 @@ MulticopterPositionControl::task_main()
 }
 
 int
-MulticopterPositionControl::start()
+MulticopterPositionSimpleControl::start()
 {
     ASSERT(_control_task == -1);
 
     /* start the task */
-    _control_task = px4_task_spawn_cmd("mc_pos_control",
+    _control_task = px4_task_spawn_cmd("mc_pos_simple_control",
                        SCHED_DEFAULT,
                        SCHED_PRIORITY_MAX - 5,
                        1900,
-                       (px4_main_t)&MulticopterPositionControl::task_main_trampoline,
+                       (px4_main_t)&MulticopterPositionSimpleControl::task_main_trampoline,
                        nullptr);
 
     if (_control_task < 0) {
@@ -1951,21 +1951,21 @@ int mc_pos_simple_control_main(int argc, char *argv[])
 
     if (!strcmp(argv[1], "start")) {
 
-        if (pos_control::g_control != nullptr) {
+        if (pos_control_simple::g_control != nullptr) {
             warnx("already running");
             return 1;
         }
 
-        pos_control::g_control = new MulticopterPositionControl;
+        pos_control_simple::g_control = new MulticopterPositionSimpleControl;
 
-        if (pos_control::g_control == nullptr) {
+        if (pos_control_simple::g_control == nullptr) {
             warnx("alloc failed");
             return 1;
         }
 
-        if (OK != pos_control::g_control->start()) {
-            delete pos_control::g_control;
-            pos_control::g_control = nullptr;
+        if (OK != pos_control_simple::g_control->start()) {
+            delete pos_control_simple::g_control;
+            pos_control_simple::g_control = nullptr;
             warnx("start failed");
             return 1;
         }
@@ -1974,18 +1974,18 @@ int mc_pos_simple_control_main(int argc, char *argv[])
     }
 
     if (!strcmp(argv[1], "stop")) {
-        if (pos_control::g_control == nullptr) {
+        if (pos_control_simple::g_control == nullptr) {
             warnx("not running");
             return 1;
         }
 
-        delete pos_control::g_control;
-        pos_control::g_control = nullptr;
+        delete pos_control_simple::g_control;
+        pos_control_simple::g_control = nullptr;
         return 0;
     }
 
     if (!strcmp(argv[1], "status")) {
-        if (pos_control::g_control) {
+        if (pos_control_simple::g_control) {
             warnx("running");
             return 0;
 
