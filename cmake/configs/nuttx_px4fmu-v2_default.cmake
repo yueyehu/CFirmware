@@ -148,6 +148,7 @@ set(config_module_list
 	# https://px4.io/dev/px4_simple_app
 	#examples/px4_simple_app
         examples/px4_simple_app_test
+        examples/read_sensor_data
 	# Tutorial code from
 	# https://px4.io/dev/daemon
 	#examples/px4_daemon_app
