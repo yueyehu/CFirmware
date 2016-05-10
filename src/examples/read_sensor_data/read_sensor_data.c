@@ -72,6 +72,5 @@ int read_sensor_data_main(int argc, char *argv[])
             }
         }
     }
-    
     return 0;
 }
