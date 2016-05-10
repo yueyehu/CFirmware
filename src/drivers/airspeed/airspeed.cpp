@@ -42,7 +42,6 @@
 #include <px4_config.h>
 
 #include <drivers/device/i2c.h>
-
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdlib.h>
