@@ -121,7 +121,7 @@ public:
     int		start();
 
 private:
-    bool		_task_should_exit;		/**< if true, task should exit */
+    bool	_task_should_exit;		/**< if true, task should exit */
     int		_control_task;			/**< task handle for task */
     int		_mavlink_fd;			/**< mavlink fd */
 
@@ -1206,14 +1206,6 @@ MulticopterPositionSimpleControl::task_main()
             reset_yaw_sp = true;
         }
 
-        /* reset yaw and altitude setpoint for VTOL which are in fw mode */
-        if (_vehicle_status.is_vtol) {
-            if (!_vehicle_status.is_rotary_wing) {
-                reset_yaw_sp = true;
-                _reset_alt_sp = true;
-            }
-        }
-
         //Update previous arming state
         was_armed = _control_mode.flag_armed;
 
@@ -1283,15 +1275,6 @@ MulticopterPositionSimpleControl::task_main()
             } else {
                 /* AUTO */
                 control_auto(dt);
-            }
-
-            /* weather-vane mode for vtol: disable yaw control */
-            if (!_control_mode.flag_control_manual_enabled && _pos_sp_triplet.current.disable_mc_yaw_control == true) {
-                _att_sp.disable_mc_yaw_control = true;
-
-            } else {
-                /* reset in case of setpoint updates */
-                _att_sp.disable_mc_yaw_control = false;
             }
 
             if (!_control_mode.flag_control_manual_enabled && _pos_sp_triplet.current.valid
