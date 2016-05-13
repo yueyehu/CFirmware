@@ -151,6 +151,7 @@ set(config_module_list
     examples/px4_simple_app_test
     examples/read_sensor_data
     modules/mc_pos_simple_control
+	modules/mc_att_simple_control
 	# Tutorial code from
 	# https://px4.io/dev/daemon
 	#examples/px4_daemon_app
