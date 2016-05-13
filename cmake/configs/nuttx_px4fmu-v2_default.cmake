@@ -90,9 +90,10 @@ set(config_module_list
 	# modules/segway # XXX Needs GCC 4.7 fix
         #modules/fw_pos_control_l1
         #modules/fw_att_control
-	modules/mc_att_control
-    modules/mc_pos_control
-        
+    #modules/mc_att_control
+    #modules/mc_pos_control
+    modules/mc_pos_simple_control
+    modules/mc_att_simple_control
         #modules/vtol_att_control
 
 	#
@@ -148,10 +149,9 @@ set(config_module_list
 	# Tutorial code from
 	# https://px4.io/dev/px4_simple_app
 	#examples/px4_simple_app
-    examples/px4_simple_app_test
-    examples/read_sensor_data
-    modules/mc_pos_simple_control
-	modules/mc_att_simple_control
+    #examples/px4_simple_app_test
+    #examples/read_sensor_data
+
 	# Tutorial code from
 	# https://px4.io/dev/daemon
 	#examples/px4_daemon_app
