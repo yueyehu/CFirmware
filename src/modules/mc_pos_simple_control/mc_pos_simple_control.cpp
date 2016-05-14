@@ -192,6 +192,7 @@ private:
         param_t hold_max_xy;
         param_t hold_max_z;
         param_t acc_hor_max;
+        param_t height_max;
 
     }		_params_handles;		/**< handles for interesting parameters */
 
@@ -214,6 +215,7 @@ private:
         float hold_max_xy;
         float hold_max_z;
         float acc_hor_max;
+        float height_max;
 
         math::Vector<3> pos_p;
         math::Vector<3> vel_p;
@@ -449,6 +451,7 @@ MulticopterPositionSimpleControl::MulticopterPositionSimpleControl() :
     _params_handles.hold_max_xy = param_find("MPC_HOLD_MAX_XY_S");
     _params_handles.hold_max_z = param_find("MPC_HOLD_MAX_Z_S");
     _params_handles.acc_hor_max = param_find("MPC_ACC_HOR_MAX_S");
+    _params_handles.height_max = param_find("MPC_POS_HEIGHT_MAX_S");
 
     /* fetch initial parameter values */
     parameters_update(true);
@@ -506,7 +509,7 @@ MulticopterPositionSimpleControl::parameters_update(bool force)
         param_get(_params_handles.tko_speed, &_params.tko_speed);
         param_get(_params_handles.tilt_max_land, &_params.tilt_max_land);
         _params.tilt_max_land = math::radians(_params.tilt_max_land);
-
+        param_get(_params_handles.height_max,&_params.height_max);
         float v;
         param_get(_params_handles.xy_p, &v);
         _params.pos_p(0) = v;
@@ -1295,6 +1298,10 @@ MulticopterPositionSimpleControl::task_main()
                 }
 
             }else {
+                /*limit the maximun flight height*/
+                if(_control_mode.flag_control_altitude_enabled && _pos(2)>_params.height_max){
+                    _pos_sp(2)=_params.height_max;
+                }
                 /* run position & altitude controllers, if enabled (otherwise use already computed velocity setpoints) */
                 if (_run_pos_control) {
                     _vel_sp(0) = (_pos_sp(0) - _pos(0)) * _params.pos_p(0);

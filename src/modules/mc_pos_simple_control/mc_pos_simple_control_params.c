@@ -388,3 +388,14 @@ PARAM_DEFINE_FLOAT(MPC_VELD_LP_S, 5.0f);
  * @group Multicopter Position Control
  */
 PARAM_DEFINE_FLOAT(MPC_ACC_HOR_MAX_S, 4.0f);
+
+/**
+ * Maximum height in climb rate control
+ *
+ * @unit m/s/s
+ * @min 2.0
+ * @max 10.0
+ * @decimal 2
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_POS_HEIGHT_MAX_S, 2.0f);
