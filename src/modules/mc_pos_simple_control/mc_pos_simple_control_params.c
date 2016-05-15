@@ -80,19 +80,6 @@ PARAM_DEFINE_FLOAT(MPC_THR_HOVER_S, 0.5f);
 PARAM_DEFINE_FLOAT(MPC_ALTCTL_DZ_S, 0.1f);
 
 /**
- * ALTCTL throttle curve breakpoint height
- *
- * Controls the slope of the reduced sensitivity region.
- * This is the height of the ALTCTL throttle
- * curve at center-dz and center+dz.
- *
- * @min 0.0
- * @max 0.2
- * @group Multicopter Position Control
- */
-PARAM_DEFINE_FLOAT(MPC_ALTCTL_DY_S, 0.0f);
-
-/**
  * Maximum thrust in auto thrust control
  *
  * Limit max allowed thrust. Setting a value of one can put

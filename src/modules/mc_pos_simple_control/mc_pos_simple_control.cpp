@@ -166,7 +166,6 @@ private:
         param_t thr_max;
         param_t thr_hover;
         param_t alt_ctl_dz;
-        param_t alt_ctl_dy;
         param_t z_p;
         param_t z_vel_p;
         param_t z_vel_i;
@@ -272,7 +271,7 @@ private:
      */
     void		poll_subscriptions();
 
-    static float	scale_control(float ctl, float end, float dz, float dy);
+    static float	scale_control(float ctl, float mid, float dz);
     static float    throttle_curve(float ctl, float ctr);
 
     /**
@@ -425,7 +424,6 @@ MulticopterPositionSimpleControl::MulticopterPositionSimpleControl() :
     _params_handles.thr_max		= param_find("MPC_THR_MAX_S");
     _params_handles.thr_hover	= param_find("MPC_THR_HOVER_S");
     _params_handles.alt_ctl_dz	= param_find("MPC_ALTCTL_DZ_S");
-    _params_handles.alt_ctl_dy	= param_find("MPC_ALTCTL_DY_S");
     _params_handles.z_p		= param_find("MPC_Z_P_S");
     _params_handles.z_vel_p		= param_find("MPC_Z_VEL_P_S");
     _params_handles.z_vel_i		= param_find("MPC_Z_VEL_I_S");
@@ -502,7 +500,6 @@ MulticopterPositionSimpleControl::parameters_update(bool force)
         param_get(_params_handles.thr_max, &_params.thr_max);
         param_get(_params_handles.thr_hover, &_params.thr_hover);
         param_get(_params_handles.alt_ctl_dz, &_params.alt_ctl_dz);
-        param_get(_params_handles.alt_ctl_dy, &_params.alt_ctl_dy);
         param_get(_params_handles.tilt_max_air, &_params.tilt_max_air);
         _params.tilt_max_air = math::radians(_params.tilt_max_air);
         param_get(_params_handles.land_speed, &_params.land_speed);
@@ -643,16 +640,16 @@ MulticopterPositionSimpleControl::poll_subscriptions()
 }
 
 float
-MulticopterPositionSimpleControl::scale_control(float ctl, float end, float dz, float dy)
+MulticopterPositionSimpleControl::scale_control(float ctl, float mid, float dz)
 {
-    if (ctl > dz) {
-        return dy + (ctl - dz) * (1.0f - dy) / (end - dz);
+    if (ctl > mid+dz) {
+        return ctl<=1?ctl-mid-dz:1-mid-dz;
 
-    } else if (ctl < -dz) {
-        return -dy + (ctl + dz) * (1.0f - dy) / (end - dz);
+    } else if (ctl < mid-dz) {
+        return ctl>=0?ctl-mid+dz:-mid+dz;
 
     } else {
-        return ctl * (dy / dz);
+        return 0;
     }
 }
 
@@ -758,9 +755,8 @@ MulticopterPositionSimpleControl::control_manual(float dt)
 
     if (_control_mode.flag_control_altitude_enabled) {
         /* set vertical velocity setpoint with throttle stick */
-        req_vel_sp(2) = -scale_control(_manual.z - 0.5f, 0.5f, _params.alt_ctl_dz, _params.alt_ctl_dy); // D
+        req_vel_sp(2) = -scale_control(_manual.z, 0.5f, _params.alt_ctl_dz); // D
     }
-
     if (_control_mode.flag_control_position_enabled) {
         /* set horizontal velocity setpoint with roll/pitch stick */
         req_vel_sp(0) = _manual.x;
@@ -1298,10 +1294,6 @@ MulticopterPositionSimpleControl::task_main()
                 }
 
             }else {
-                /*limit the maximun flight height*/
-                if(_control_mode.flag_control_altitude_enabled && _pos(2)>_params.height_max){
-                    _pos_sp(2)=_params.height_max;
-                }
                 /* run position & altitude controllers, if enabled (otherwise use already computed velocity setpoints) */
                 if (_run_pos_control) {
                     _vel_sp(0) = (_pos_sp(0) - _pos(0)) * _params.pos_p(0);
@@ -1311,7 +1303,12 @@ MulticopterPositionSimpleControl::task_main()
                 if (_run_alt_control) {
                     _vel_sp(2) = (_pos_sp(2) - _pos(2)) * _params.pos_p(2);
                 }
-
+                /*limit the maximun flight height,have not been tested*/
+                if(_control_mode.flag_control_altitude_enabled && _local_pos.dist_bottom_valid){
+                    if(_local_pos.dist_bottom>_params.height_max){
+                        _vel_sp(2) = 0.0f;
+                    }
+                }
                 /* make sure velocity setpoint is saturated in xy*/
                 float vel_norm_xy = sqrtf(_vel_sp(0) * _vel_sp(0) +
                               _vel_sp(1) * _vel_sp(1));

@@ -1352,7 +1352,7 @@ protected:
 			msg.vx = pos.vx;
 			msg.vy = pos.vy;
 			msg.vz = pos.vz;
-            msg._ref_alt = pos.ref_alt;
+            //msg.ref_alt = pos.ref_alt;
 
 			_mavlink->send_message(MAVLINK_MSG_ID_LOCAL_POSITION_NED, &msg);
 		}
