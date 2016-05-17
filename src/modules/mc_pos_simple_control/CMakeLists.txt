@@ -35,7 +35,7 @@ px4_add_module(
 	MAIN mc_pos_simple_control
 	STACK 2000
 	SRCS
-		mc_pos_simple_control.cpp
+        mc_pos_simple_control_main.cpp
 	DEPENDS
 		platforms__common
 	)
