@@ -7,6 +7,7 @@
 # The system is defaulting to INAV_ENABLED = 1
 # but users can alternatively try the EKF-based
 # filter by setting INAV_ENABLED = 0
+
 if param compare INAV_ENABLED 1
 then
 	attitude_estimator_q start
@@ -22,21 +23,21 @@ else
 fi
 
 #if mc_att_control start
-if mc_att_simple_control start
-then
-else
-	# try the multiplatform version
-	mc_att_control_m start
-fi
+#if mc_att_simple_control start
+#then
+#else
+    # try the multiplatform version
+#   mc_att_control_m start
+#fi
 
 #if mc_pos_control start
-if mc_pos_simple_control start
-then
-else
-	# try the multiplatform version
-	mc_pos_control_m start
-fi
-
+#if mc_pos_simple_control start
+#then
+#else
+    # try the multiplatform version
+#    mc_pos_control_m start
+#fi
+mc_lyapunov_control start
 #
 # Start Land Detector
 #

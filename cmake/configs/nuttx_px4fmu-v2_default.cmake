@@ -94,6 +94,7 @@ set(config_module_list
     #modules/mc_pos_control
     modules/mc_pos_simple_control
     modules/mc_att_simple_control
+    modules/mc_lyapunov_control
         #modules/vtol_att_control
 
 	#
