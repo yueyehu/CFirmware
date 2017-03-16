@@ -423,7 +423,7 @@ MulticopterLyapunovControl::update_ref()
 
 float
 MulticopterLyapunovControl::limitMinMax(float input, float _min, float _max){
-    if(input <_min){
+    if(input < _min){
         return _min;
     }
     else if(input > _max){
@@ -503,7 +503,7 @@ MulticopterLyapunovControl::task_main()
     _global_vel_sp_sub = orb_subscribe(ORB_ID(vehicle_global_velocity_setpoint));
 
     parameters_update(true);
-    mavlink_log_info(_mavlink_fd, "[mc_lyapunov]param:%8.4f,%8.4f,%8.4f",(double)_params.Ix,(double)_params.Iy,(double)_params.Iz);
+    //mavlink_log_info(_mavlink_fd, "[mc_lyapunov]param:%8.4f,%8.4f,%8.4f",(double)_params.Ix,(double)_params.Iy,(double)_params.Iz);
     /* initialize values of critical structs until first regular update */
     _arming.armed = false;
 
@@ -547,9 +547,6 @@ MulticopterLyapunovControl::task_main()
 
     fds[0].fd = _local_pos_sub;
     fds[0].events = POLLIN;
-
-//    fds[1].fd = _vehicle_att_sub;
-//    fds[1].events = POLLIN;
 
     while (!_task_should_exit) {
         /* wait for up to 500ms for data */
@@ -612,7 +609,7 @@ MulticopterLyapunovControl::task_main()
             dphi = _ctrl_state.roll_rate;
             dtheta = _ctrl_state.pitch_rate;
             dpsi = _ctrl_state.yaw_rate;
-            mavlink_log_info(_mavlink_fd, "[mc_lyapunov]degree:%8.4f,%8.4f,%8.4f,%8.4f",(double)psi,(double)dphi,(double)dtheta,(double)dpsi);
+            mavlink_log_info(_mavlink_fd, "[mc_lyapunov]degree:%8.4f,%8.4f",(double)psi,(double)dpsi);
             m_phi = _params.Ix*dphi-_params.Ix*sinf(theta)*dpsi;
             m_theta = (_params.Iy*cosf(phi)*cosf(phi)+_params.Iz*(sinf(phi)*sinf(phi)))*dtheta+(_params.Iy-_params.Iz)*cosf(phi)*sinf(phi)*cosf(theta)*dpsi;
             m_psi = -_params.Ix*sinf(theta)*dphi+(_params.Iy-_params.Iz)*cosf(phi)*sinf(phi)*cosf(theta)*dtheta+\
@@ -673,7 +670,11 @@ MulticopterLyapunovControl::task_main()
                 the_cmd = atanf(beta(0)/beta(2));
                 phi_cmd = atanf(-beta(1)*cosf(the_cmd)/beta(2));
                 U(0) = beta(2)/(cosf(phi_cmd)*cosf(the_cmd));
-                psi_cmd = psi;
+
+                the_cmd = limitMinMax(the_cmd,-0.3,0.3);
+                phi_cmd = limitMinMax(phi_cmd,-0.3,0.3);
+                psi_cmd = 0;
+
                 e(1) = phi - phi_cmd;
                 e(2) = m_phi/_params.Ix + _params.k1*e(1);
                 e(3) = theta - the_cmd;
@@ -684,8 +685,12 @@ MulticopterLyapunovControl::task_main()
                 U(1) = -f1+(-(_params.k1*g1*_params.Ix+_params.k2)*e(2)+(g1*_params.Ix*_params.k1*_params.k1-g1*_params.Ix)*e(1))*_params.Ix;
                 U(2) = -f2+(-(_params.k3*g2*_params.Iy+_params.k4)*e(4)+(g2*_params.Iy*_params.k3*_params.k3-g2*_params.Iy)*e(3))*_params.Iy;
                 U(3) = (-(_params.k5*g3*_params.Iz+_params.k6)*e(6)+(g3*_params.Iz*_params.k5*_params.k5-g3*_params.Iz)*e(5))*_params.Iz;
+
                 mavlink_log_info(_mavlink_fd, "control data:%8.4f,%8.4f,%8.4f,%8.4f",(double)U(0),(double)U(1),(double)U(2),(double)U(3));
-                if (fabsf(U(0))>_params.u1_max){
+                if (U(0)>0){
+                    U(0) = 0.0;
+                }
+                else if(U(0)<-_params.u1_max){
                     U(0) = 1.0;
                 }
                 else{
@@ -709,31 +714,24 @@ MulticopterLyapunovControl::task_main()
                 else{
                     U(3) = U(3)/_params.u4_max;
                 }
+                U(1)=limitMinMax(U(1),-0.3,0.3);
+                U(2)=limitMinMax(U(2),-0.3,0.3);
+                U(3)=limitMinMax(U(3),-0.3,0.3);
                 //mavlink_log_info(_mavlink_fd, "control data:%8.4f,%8.4f,%8.4f,%8.4f",(double)U(0),(double)U(1),(double)U(2),(double)U(3));
                 _actuators.control[0] = (PX4_ISFINITE(U(1))) ? U(1) : 0.0f;
                 _actuators.control[1] = (PX4_ISFINITE(U(2))) ? U(2) : 0.0f;
                 _actuators.control[2] = (PX4_ISFINITE(U(3))) ? U(3) : 0.0f;
                 _actuators.control[3] = (PX4_ISFINITE(U(0))) ? U(0) : 0.0f;
-                //_actuators.control[0] = 0.0f;
-                //_actuators.control[1] = 0.0f;
-                //_actuators.control[2] = 0.0f;
-                //_actuators.control[3] = 1.0f;
 
                 _actuators.timestamp = hrt_absolute_time();
                 _actuators.timestamp_sample = _ctrl_state.timestamp;
                 if (_actuators_0_pub != nullptr) {
                     orb_publish(ORB_ID(actuator_controls_0), _actuators_0_pub, &_actuators);
-
                 } else {
                     _actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &_actuators);
                 }
             }
         }
-        /*
-        else{
-            mavlink_log_info(_mavlink_fd, "[mpc] only apply to auto mode");
-        }
-        */
     }
 
     mavlink_log_info(_mavlink_fd, "[mpc] stopped");

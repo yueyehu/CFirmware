@@ -23,21 +23,21 @@ else
 fi
 
 #if mc_att_control start
-#if mc_att_simple_control start
-#then
-#else
+if mc_att_simple_control start
+then
+else
     # try the multiplatform version
-#   mc_att_control_m start
-#fi
+   mc_att_control_m start
+fi
 
 #if mc_pos_control start
-#if mc_pos_simple_control start
-#then
-#else
+if mc_pos_simple_control start
+then
+else
     # try the multiplatform version
-#    mc_pos_control_m start
-#fi
-mc_lyapunov_control start
+   mc_pos_control_m start
+fi
+#mc_lyapunov_control start
 #
 # Start Land Detector
 #

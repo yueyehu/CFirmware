@@ -59,7 +59,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_M, 1.0230f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K1, 17.4f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K1, 15f);
 /**
  * K
  *
@@ -70,7 +70,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K1, 17.4f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K2, 8.7f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K2, 8f);
 /**
  * K
  *
@@ -81,7 +81,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K2, 8.7f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K3, 17.4f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K3, 15f);
 /**
  * K
  *
@@ -92,7 +92,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K3, 17.4f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K4, 8.7f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K4, 8f);
 /**
  * K
  *
@@ -103,7 +103,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K4, 8.7f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K5, 3.5f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K5, 2.5f);
 /**
  * K
  *
@@ -114,7 +114,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K5, 3.5f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K6, 3.6f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K6, 2.5f);
 /**
  * K
  *
@@ -169,7 +169,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K10, 2.0f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K11, 1.5f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K11, 2.0f);
 /**
  * K
  *
@@ -180,7 +180,7 @@ PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K11, 1.5f);
  * @decimal 2
  * @group Multicopter Lyapunov Control
  */
-PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K12, 1.5f);
+PARAM_DEFINE_FLOAT(MC_LYAPUNOV_K12, 2.0f);
 /**
  * U_MAX
  *
