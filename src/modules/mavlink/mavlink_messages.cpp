@@ -1358,6 +1358,77 @@ protected:
 	}
 };
 
+class MavlinkStreamSetPositionTargetLocalNED : public MavlinkStream
+{
+public:
+    const char *get_name() const
+    {
+        return MavlinkStreamSetPositionTargetLocalNED::get_name_static();
+    }
+
+    static const char *get_name_static()
+    {
+        return "SET_POSITION_TARGET_LOCAL_NED";
+    }
+
+    uint8_t get_id()
+    {
+        return MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED;
+    }
+
+    static MavlinkStream *new_instance(Mavlink *mavlink)
+    {
+        return new MavlinkStreamSetPositionTargetLocalNED(mavlink);
+    }
+
+    unsigned get_size()
+    {
+        return MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+    }
+
+private:
+    MavlinkOrbSubscription *_pos_sub;
+    uint64_t _pos_time;
+
+    /* do not allow top copying this class */
+    MavlinkStreamSetPositionTargetLocalNED(MavlinkStreamSetPositionTargetLocalNED &);
+    MavlinkStreamSetPositionTargetLocalNED& operator = (const MavlinkStreamSetPositionTargetLocalNED &);
+
+protected:
+    explicit MavlinkStreamSetPositionTargetLocalNED(Mavlink *mavlink) : MavlinkStream(mavlink),
+        _pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_local_position))),
+        _pos_time(0)
+    {}
+
+    void send(const hrt_abstime t)
+    {
+        struct vehicle_local_position_s pos;
+
+        if (_pos_sub->update(&_pos_time, &pos)) {
+            mavlink_set_position_target_local_ned_t msg;
+
+            msg.time_boot_ms = pos.timestamp / 1000;
+            msg.x = pos.x;
+            msg.y = pos.y;
+            msg.z = pos.z;
+            msg.vx = pos.vx;
+            msg.vy = pos.vy;
+            msg.vz = pos.vz;
+            msg.afx = 0;
+            msg.afy = 0;
+            msg.afz = 0;
+            msg.yaw=0;
+            msg.yaw_rate=0;
+            msg.type_mask=0;
+            msg.target_component=0;
+            msg.target_system=0;
+            msg.coordinate_frame=MAV_FRAME_LOCAL_NED;
+
+            _mavlink->send_message(MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED, &msg);
+        }
+    }
+};
+
 
 class MavlinkStreamLocalPositionNEDCOV : public MavlinkStream
 {
@@ -2751,7 +2822,8 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamTimesync::new_instance, &MavlinkStreamTimesync::get_name_static),
 	new StreamListItem(&MavlinkStreamGlobalPositionInt::new_instance, &MavlinkStreamGlobalPositionInt::get_name_static),
 	new StreamListItem(&MavlinkStreamLocalPositionNED::new_instance, &MavlinkStreamLocalPositionNED::get_name_static),
-	new StreamListItem(&MavlinkStreamVisionPositionNED::new_instance, &MavlinkStreamVisionPositionNED::get_name_static),
+    new StreamListItem(&MavlinkStreamVisionPositionNED::new_instance, &MavlinkStreamVisionPositionNED::get_name_static),
+    new StreamListItem(&MavlinkStreamSetPositionTargetLocalNED::new_instance, &MavlinkStreamSetPositionTargetLocalNED::get_name_static),
 	new StreamListItem(&MavlinkStreamLocalPositionNEDCOV::new_instance, &MavlinkStreamLocalPositionNEDCOV::get_name_static),
 	new StreamListItem(&MavlinkStreamAttPosMocap::new_instance, &MavlinkStreamAttPosMocap::get_name_static),
 	new StreamListItem(&MavlinkStreamHomePosition::new_instance, &MavlinkStreamHomePosition::get_name_static),
