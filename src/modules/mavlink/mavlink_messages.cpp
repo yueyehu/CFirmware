@@ -1419,9 +1419,9 @@ protected:
             msg.afz = 0;
             msg.yaw=0;
             msg.yaw_rate=0;
-            msg.type_mask=0;
-            msg.target_component=0;
-            msg.target_system=0;
+            msg.type_mask=0x1C0|(1 << 9)|0x400|0x800;
+            msg.target_component=2;
+            msg.target_system=2;
             msg.coordinate_frame=MAV_FRAME_LOCAL_NED;
 
             _mavlink->send_message(MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED, &msg);
