@@ -35,3 +35,4 @@ bool fw_control_yaw					# control heading with rudder (used for auto takeoff on 
 bool disable_mc_yaw_control			# control yaw for mc (used for vtol weather-vane mode)
 
 bool apply_flaps
+float32 mass
