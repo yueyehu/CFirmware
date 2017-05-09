@@ -292,6 +292,17 @@ public:
 		return res;
 	}
 
+    /**
+     * calculate the sum of vector
+     */
+    float sum() const {
+        float res=0;
+
+        for (unsigned int i = 0; i < N; i++)
+            res += data[i];
+
+        return res;
+    }
 	/**
 	 * element by element division
 	 */
