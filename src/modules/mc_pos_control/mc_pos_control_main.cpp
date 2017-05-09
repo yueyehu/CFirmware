@@ -245,6 +245,9 @@ private:
 	math::Vector<3> _vel_sp_prev;
 	math::Vector<3> _thrust_sp_prev;
 	math::Vector<3> _vel_err_d;		/**< derivative of current velocity */
+    math::Vector<3> _euler_angles;
+    math::Vector<3> _omega;
+
 
 	math::Matrix<3, 3> _R;			/**< rotation matrix from attitude quaternions */
 	float _yaw;				/**< yaw angle (euler) */
@@ -254,6 +257,8 @@ private:
 	float _vel_z_lp;
 	float _acc_z_lp;
 	float _takeoff_thrust_sp;
+    float _F_l;
+    float _e_mass;
 
 	/**
 	 * Update our local parameter cache.
@@ -390,7 +395,9 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_takeoff_jumped(false),
 	_vel_z_lp(0),
 	_acc_z_lp(0),
-	_takeoff_thrust_sp(0.0f)
+    _takeoff_thrust_sp(0.0f),
+    _F_l(0),
+    _e_mass(0)
 {
 	memset(&_vehicle_status, 0, sizeof(_vehicle_status));
 	memset(&_ctrl_state, 0, sizeof(_ctrl_state));
@@ -422,6 +429,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_vel_ff.zero();
 	_vel_sp_prev.zero();
 	_vel_err_d.zero();
+    _euler_angles.zero();
+    _omega.zero();
 
 	_R.identity();
 
@@ -609,9 +618,12 @@ MulticopterPositionControl::poll_subscriptions()
 		/* get current rotation matrix and euler angles from control state quaternions */
 		math::Quaternion q_att(_ctrl_state.q[0], _ctrl_state.q[1], _ctrl_state.q[2], _ctrl_state.q[3]);
 		_R = q_att.to_dcm();
-		math::Vector<3> euler_angles;
-		euler_angles = _R.to_euler();
-		_yaw = euler_angles(2);
+        _euler_angles = _R.to_euler();
+        _yaw = _euler_angles(2);
+
+        _omega(0) = _ctrl_state.roll_rate-(float)sin(_euler_angles(1));
+        _omega(1) = _ctrl_state.pitch_rate*(float)cos(_euler_angles(0))+_ctrl_state.yaw_rate*(float)sin(_euler_angles(0))*(float)cos(_euler_angles(1));
+        _omega(2) = _ctrl_state.pitch_rate*(float)sin(_euler_angles(0))+_ctrl_state.yaw_rate*(float)cos(_euler_angles(0))*(float)cos(_euler_angles(1));
 	}
 
 	orb_check(_att_sp_sub, &updated);
@@ -1136,6 +1148,7 @@ MulticopterPositionControl::estimate_mass_fun(const math::Vector<3> &vel_err,con
     math::Vector<3> gRe3=R.transposed()*math::Vector<3>(0,0,9.81);
     float tmp = dvel(2)+vel(1)*omega(0)-vel(0)*omega(1)-gRe3(2);
     float real_mass = -F_old/tmp;
+    real_mass = 1.0;
     float update_mass;
 
     float k_em = 1;
@@ -1934,8 +1947,12 @@ MulticopterPositionControl::task_main()
 		} else {
 			reset_yaw_sp = true;
 		}
+        math::Vector<3> vel_err = _vel-_vel_sp;
+        math::Vector<3> pos_err = _pos-_pos_sp;
+        _att_sp.mass = estimate_mass_fun(vel_err,pos_err,_vel,(_vel-_vel_prev)/dt,math::Vector<3>(0,0,0),_omega,_R,_e_mass,_F_l,dt);
+        _e_mass = _att_sp.mass;
 
-		/* update previous velocity for velocity controller D part */
+        /* update previous velocity for velocity controller D part */
 		_vel_prev = _vel;
 
 		/* publish attitude setpoint
