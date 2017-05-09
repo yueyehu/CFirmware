@@ -319,6 +319,12 @@ private:
 	 */
 	void		control_auto(float dt);
 
+    /**
+     * Estimate quadrotor's mass
+     */
+    float estimate_mass_fun(const math::Vector<3> &vel_err,const math::Vector<3> &pos_err,const math::Vector<3> &vel,
+                            const math::Vector<3> &dvel,const math::Vector<3> &dvel_sp,const math::Vector<3> &omega,const math::Matrix<3,3> &R,float e_mass,float F_old,float dt);
+
 	/**
 	 * Select between barometric and global (AMSL) altitudes
 	 */
@@ -1119,6 +1125,45 @@ void MulticopterPositionControl::control_auto(float dt)
 	} else {
 		/* no waypoint, do nothing, setpoint was already reset */
 	}
+}
+/**
+ * Estimate quadrotor's mass
+ */
+float
+MulticopterPositionControl::estimate_mass_fun(const math::Vector<3> &vel_err,const math::Vector<3> &pos_err,const math::Vector<3> &vel,
+                        const math::Vector<3> &dvel,const math::Vector<3> &dvel_sp,const math::Vector<3> &omega,const math::Matrix<3,3> &R,float e_mass,float F_old,float dt)
+{
+    math::Vector<3> gRe3=R.transposed()*math::Vector<3>(0,0,9.81);
+    float tmp = dvel(2)+vel(1)*omega(0)-vel(0)*omega(1)-gRe3(2);
+    float real_mass = -F_old/tmp;
+    float update_mass;
+
+    float k_em = 1;
+    float k_m = 1;
+    float alpha = 0.5;
+    float c2=0.02;
+    float max_mass = 1.5;
+
+    math::Matrix<3,3> omega_hat;
+    omega_hat(0,0)=omega_hat(1,1)=omega_hat(2,2)=0;
+    omega_hat(0,1)=-omega(2);omega_hat(1,0)=omega(2);
+    omega_hat(0,2)=omega(1);omega_hat(2,0)=-omega(1);
+    omega_hat(1,2)=-omega(0);omega_hat(1,2)=omega(0);
+
+    if(real_mass>e_mass){
+        update_mass = e_mass-k_em*dt*(alpha*max_mass-e_mass)+((gRe3-omega_hat*vel_err-R.transposed()*dvel_sp).emult(vel_err+pos_err*c2)).sum()*dt/k_m;
+    }else if(real_mass<e_mass){
+        update_mass = e_mass-k_em*dt*(max_mass-e_mass)+((gRe3-omega_hat*vel_err-R.transposed()*dvel_sp).emult(vel_err+pos_err*c2)).sum()*dt/k_m;
+    }
+    else{
+        update_mass = e_mass;
+    }
+    if(update_mass>max_mass){
+        update_mass = max_mass;
+    }else if(update_mass<alpha*max_mass){
+        update_mass = alpha*max_mass;
+    }
+    return update_mass;
 }
 
 void
