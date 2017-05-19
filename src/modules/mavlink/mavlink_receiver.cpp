@@ -642,7 +642,7 @@ MavlinkReceiver::handle_message_set_position_target_local_ned(mavlink_message_t 
 	memset(&offboard_control_mode, 0, sizeof(offboard_control_mode));//XXX breaks compatibility with multiple setpoints
 
 	/* Only accept messages which are intended for this system */
-	if ((mavlink_system.sysid == set_position_target_local_ned.target_system ||
+    if ((mavlink_system.sysid == set_position_target_local_ned.target_system ||
 				set_position_target_local_ned.target_system == 0) &&
 			(mavlink_system.compid == set_position_target_local_ned.target_component ||
 			 set_position_target_local_ned.target_component == 0)) {

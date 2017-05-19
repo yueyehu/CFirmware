@@ -170,6 +170,9 @@ private:
 	math::Vector<3>		_att_control;	/**< attitude control vector */
 
 	math::Matrix<3, 3>  _I;				/**< identity matrix */
+    math::Matrix<3, 3>  _R_sp_prev;
+    math::Vector<3>     _omega_sp_prev;
+    math::Matrix<3, 3>  _R_prev;
 
 	struct {
 		param_t roll_p;
@@ -274,6 +277,21 @@ private:
 	 */
 	void		control_attitude_rates(float dt);
 
+    /**
+     * Attitude geometry controller.
+     */
+    void		control_geometry_attitude(float dt);
+
+    /**
+     * Attitude geometry controller.
+     */
+    void		control_geometry_attitude2(float dt);
+
+    void        estimate_inertia_fun(float dt);
+
+
+    math::Vector<3> limit_min_max(const math::Vector<3> &data,float min_d,float max_d);
+
 	/**
 	 * Check for vehicle status updates.
 	 */
@@ -367,6 +385,9 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_att_control.zero();
 
 	_I.identity();
+    _R_prev.identity();
+    _R_sp_prev.identity();
+    _omega_sp_prev.zero();
 
 	_params_handles.roll_p			= 	param_find("MC_ROLL_P");
 	_params_handles.roll_rate_p		= 	param_find("MC_ROLLRATE_P");
@@ -667,7 +688,7 @@ MulticopterAttitudeControl::control_attitude(float dt)
 	math::Vector<3> R_sp_z(R_sp(0, 2), R_sp(1, 2), R_sp(2, 2));
 
 	/* axis and sin(angle) of desired rotation */
-	math::Vector<3> e_R = R.transposed() * (R_z % R_sp_z);
+    math::Vector<3> e_R = R.transposed() * (R_z % R_sp_z);
 
 	/* calculate angle error */
 	float e_R_z_sin = e_R.length();
@@ -795,6 +816,262 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 			}
 		}
 	}
+}
+/**
+ * limit constraint
+ */
+math::Vector<3>
+MulticopterAttitudeControl::limit_min_max(const math::Vector<3> &data,float min_d,float max_d)
+{
+    math::Vector<3> tmp;
+    for(int i=0;i<3;i++){
+        if(data(i)<min_d){
+            tmp(i)=min_d;
+        }
+        else if(data(i)>max_d){
+            tmp(i)=max_d;
+        }
+        else{
+            tmp(i)=data(i);
+        }
+    }
+    return tmp;
+}
+
+
+/*
+ * Attitude geometry controller.
+ * Input: '_rates_sp' vector, '_thrust_sp'
+ * Output: '_att_control' vector
+ */
+void
+MulticopterAttitudeControl::control_geometry_attitude(float dt)
+{
+    float k_R = 2.5;
+    float k_omega = 0.3;
+    math::Matrix<3,3> J;
+    J.zero();
+    J(0,0)=0.0095;J(1,1)=0.0095;J(2,2)=0.0186;
+
+    vehicle_attitude_setpoint_poll();
+
+    _thrust_sp = _v_att_sp.thrust;
+
+    /* construct attitude setpoint rotation matrix */
+    math::Matrix<3, 3> R_sp;
+    R_sp.set(_v_att_sp.R_body);
+
+    /* get current rotation matrix from control state quaternions */
+    math::Quaternion q_att(_ctrl_state.q[0], _ctrl_state.q[1], _ctrl_state.q[2], _ctrl_state.q[3]);
+    math::Matrix<3, 3> R = q_att.to_dcm();
+
+    math::Vector<3> euler_angles = R.to_euler();
+    math::Vector<3> omega;
+    omega(0) = _ctrl_state.roll_rate-_ctrl_state.yaw_rate*sinf(euler_angles(1));
+    omega(1) = _ctrl_state.pitch_rate*cosf(euler_angles(0))+_ctrl_state.yaw_rate*sinf(euler_angles(0))*cosf(euler_angles(1));
+    omega(2) = -_ctrl_state.pitch_rate*sinf(euler_angles(0))+_ctrl_state.yaw_rate*cosf(euler_angles(0))*cosf(euler_angles(1));
+
+    math::Vector<3> omega_sp=math::Vector<3>(0,0,0);
+
+    math::Matrix<3,3> RRd = R_sp.transposed()*R-R.transposed()*R_sp;
+    math::Vector<3> e_R;
+    e_R(0)=RRd(2,1)/2;e_R(1)=RRd(0,2)/2;e_R(2)=RRd(1,0)/2;
+
+    /*
+    math::Matrix<3,3> dR = (R-_R_prev)/dt;
+    math::Matrix<3,3> omega_hat = R.transposed()*dR;
+    math::Vector<3> omega;
+    omega(0)=omega_hat(2,1);omega(1)=omega_hat(0,2);omega(2)=omega_hat(1,0);
+
+    math::Matrix<3,3> dR_sp = (R_sp-_R_sp_prev)/dt;
+    math::Matrix<3,3> omega_hat_sp = R_sp.transposed()*dR_sp;
+    math::Vector<3> omega_sp;
+    omega_sp(0)=omega_hat_sp(2,1);omega_sp(1)=omega_hat_sp(0,2);omega_sp(2)=omega_hat_sp(1,0);
+    */
+
+    math::Vector<3> e_omega;
+    e_omega = omega-R.transposed()*R_sp*omega_sp;
+
+    math::Vector<3> domega_sp = (omega_sp-_omega_sp_prev)/dt;
+
+    math::Matrix<3,3> omega_hat;
+    omega_hat(0,0)=omega_hat(1,1)=omega_hat(2,2)=0;
+    omega_hat(0,1)=-omega(2);omega_hat(1,0)=omega(2);
+    omega_hat(0,2)=omega(1);omega_hat(2,0)=-omega(1);
+    omega_hat(1,2)=-omega(0);omega_hat(2,1)=omega(0);
+
+    math::Vector<3> tau_p;
+    //e_R = limit_min_max(e_R,-0.01,0.01);
+    //e_omega = limit_min_max(e_omega,-0.01,0.01);
+    tau_p = -e_R*k_R-e_omega*k_omega+omega_hat*J*omega-J*(omega_hat*R.transposed()*R_sp*omega_sp-R.transposed()*R_sp*domega_sp);
+    //tau_p = -e_R*k_R-e_omega*k_omega;
+
+    if(tau_p.length()>0.1f){
+        tau_p = tau_p/(10.0f*tau_p.length());
+    }
+    _att_control = tau_p;
+    //_att_control = math::Vector<3>(0.0f,0.0f,0.0f);
+
+    _R_prev = R_sp;
+    _R_sp_prev = R_sp;
+    _omega_sp_prev = omega_sp;
+}
+
+/*
+ * Attitude geometry controller.
+ * Input: '_rates_sp' vector, '_thrust_sp'
+ * Output: '_att_control' vector
+ */
+void
+MulticopterAttitudeControl::control_geometry_attitude2(float dt)
+{
+    vehicle_attitude_setpoint_poll();
+
+    _thrust_sp = _v_att_sp.thrust;
+
+    /* construct attitude setpoint rotation matrix */
+    math::Matrix<3, 3> R_sp;
+    R_sp.set(_v_att_sp.R_body);
+
+    /* get current rotation matrix from control state quaternions */
+    math::Quaternion q_att(_ctrl_state.q[0], _ctrl_state.q[1], _ctrl_state.q[2], _ctrl_state.q[3]);
+    math::Matrix<3, 3> R = q_att.to_dcm();
+
+    /* all input data is ready, run controller itself */
+
+    /* try to move thrust vector shortest way, because yaw response is slower than roll/pitch */
+    math::Vector<3> R_z(R(0, 2), R(1, 2), R(2, 2));
+    math::Vector<3> R_sp_z(R_sp(0, 2), R_sp(1, 2), R_sp(2, 2));
+
+    /* axis and sin(angle) of desired rotation */
+    math::Vector<3> e_R = R.transposed() * (R_z % R_sp_z);
+
+    //math::Matrix<3,3> RRd = R_sp.transposed()*R-R.transposed()*R_sp;
+    //math::Vector<3> e_R;
+    //e_R(0)=RRd(2,1)/2;e_R(1)=RRd(0,2)/2;e_R(2)=RRd(1,0)/2;
+
+    /* calculate angle error */
+    float e_R_z_sin = e_R.length();
+    float e_R_z_cos = R_z * R_sp_z;
+
+    /* calculate weight for yaw control */
+    float yaw_w = R_sp(2, 2) * R_sp(2, 2);
+
+    /* calculate rotation matrix after roll/pitch only rotation */
+    math::Matrix<3, 3> R_rp;
+
+    if (e_R_z_sin > 0.0f) {
+        /* get axis-angle representation */
+        float e_R_z_angle = atan2f(e_R_z_sin, e_R_z_cos);
+        math::Vector<3> e_R_z_axis = e_R / e_R_z_sin;
+
+        e_R = e_R_z_axis * e_R_z_angle;
+
+        /* cross product matrix for e_R_axis */
+        math::Matrix<3, 3> e_R_cp;
+        e_R_cp.zero();
+        e_R_cp(0, 1) = -e_R_z_axis(2);
+        e_R_cp(0, 2) = e_R_z_axis(1);
+        e_R_cp(1, 0) = e_R_z_axis(2);
+        e_R_cp(1, 2) = -e_R_z_axis(0);
+        e_R_cp(2, 0) = -e_R_z_axis(1);
+        e_R_cp(2, 1) = e_R_z_axis(0);
+
+        /* rotation matrix for roll/pitch only rotation */
+        R_rp = R * (_I + e_R_cp * e_R_z_sin + e_R_cp * e_R_cp * (1.0f - e_R_z_cos));
+
+    } else {
+        /* zero roll/pitch rotation */
+        R_rp = R;
+    }
+
+    /* R_rp and R_sp has the same Z axis, calculate yaw error */
+    math::Vector<3> R_sp_x(R_sp(0, 0), R_sp(1, 0), R_sp(2, 0));
+    math::Vector<3> R_rp_x(R_rp(0, 0), R_rp(1, 0), R_rp(2, 0));
+    e_R(2) = atan2f((R_rp_x % R_sp_x) * R_sp_z, R_rp_x * R_sp_x) * yaw_w;
+
+    if (e_R_z_cos < 0.0f) {
+        /* for large thrust vector rotations use another rotation method:
+         * calculate angle and axis for R -> R_sp rotation directly */
+        math::Quaternion q;
+        q.from_dcm(R.transposed() * R_sp);
+        math::Vector<3> e_R_d = q.imag();
+        e_R_d.normalize();
+        e_R_d *= 2.0f * atan2f(e_R_d.length(), q(0));
+
+        /* use fusion of Z axis based rotation and direct rotation */
+        float direct_w = e_R_z_cos * e_R_z_cos * yaw_w;
+        e_R = e_R * (1.0f - direct_w) + e_R_d * direct_w;
+    }
+
+    /* calculate angular rates setpoint */
+    _rates_sp = _params.att_p.emult(e_R);
+
+    /* limit rates */
+    for (int i = 0; i < 3; i++) {
+        if (_v_control_mode.flag_control_velocity_enabled && !_v_control_mode.flag_control_manual_enabled) {
+            _rates_sp(i) = math::constrain(_rates_sp(i), -_params.auto_rate_max(i), _params.auto_rate_max(i));
+        } else {
+            _rates_sp(i) = math::constrain(_rates_sp(i), -_params.mc_rate_max(i), _params.mc_rate_max(i));
+        }
+    }
+
+    /* weather-vane mode, dampen yaw rate */
+    if (_v_att_sp.disable_mc_yaw_control == true && _v_control_mode.flag_control_velocity_enabled && !_v_control_mode.flag_control_manual_enabled) {
+        float wv_yaw_rate_max = _params.auto_rate_max(2) * _params.vtol_wv_yaw_rate_scale;
+        _rates_sp(2) = math::constrain(_rates_sp(2), -wv_yaw_rate_max, wv_yaw_rate_max);
+        // prevent integrator winding up in weathervane mode
+        _rates_int(2) = 0.0f;
+    }
+
+    /* feed forward yaw setpoint rate */
+    _rates_sp(2) += _v_att_sp.yaw_sp_move_rate * yaw_w * _params.yaw_ff;
+
+    /* weather-vane mode, scale down yaw rate */
+    if (_v_att_sp.disable_mc_yaw_control == true && _v_control_mode.flag_control_velocity_enabled && !_v_control_mode.flag_control_manual_enabled) {
+        float wv_yaw_rate_max = _params.auto_rate_max(2) * _params.vtol_wv_yaw_rate_scale;
+        _rates_sp(2) = math::constrain(_rates_sp(2), -wv_yaw_rate_max, wv_yaw_rate_max);
+        // prevent integrator winding up in weathervane mode
+        _rates_int(2) = 0.0f;
+    }
+
+    /* reset integral if disarmed */
+    if (!_armed.armed || !_vehicle_status.is_rotary_wing) {
+        _rates_int.zero();
+    }
+
+    /* current body angular rates */
+    math::Vector<3> rates;
+    rates(0) = _ctrl_state.roll_rate;
+    rates(1) = _ctrl_state.pitch_rate;
+    rates(2) = _ctrl_state.yaw_rate;
+
+    /* angular rates error */
+    math::Vector<3> rates_err = _rates_sp - rates;
+    _att_control = _params.rate_p.emult(rates_err) + _params.rate_d.emult(_rates_prev - rates) / dt + _rates_int +
+               _params.rate_ff.emult(_rates_sp - _rates_sp_prev) / dt;
+    _rates_sp_prev = _rates_sp;
+    _rates_prev = rates;
+
+    /* update integral only if not saturated on low limit and if motor commands are not saturated */
+    if (_thrust_sp > MIN_TAKEOFF_THRUST && !_motor_limits.lower_limit && !_motor_limits.upper_limit) {
+        for (int i = 0; i < 3; i++) {
+            if (fabsf(_att_control(i)) < _thrust_sp) {
+                float rate_i = _rates_int(i) + _params.rate_i(i) * rates_err(i) * dt;
+
+                if (PX4_ISFINITE(rate_i) && rate_i > -RATES_I_LIMIT && rate_i < RATES_I_LIMIT &&
+                    _att_control(i) > -RATES_I_LIMIT && _att_control(i) < RATES_I_LIMIT) {
+                    _rates_int(i) = rate_i;
+                }
+            }
+        }
+    }
+}
+
+void
+MulticopterAttitudeControl::estimate_inertia_fun(float dt)
+{
+
 }
 
 void
@@ -955,7 +1232,9 @@ MulticopterAttitudeControl::task_main()
 
 			if (_v_control_mode.flag_control_rates_enabled) {
 				control_attitude_rates(dt);
-
+                //if(_v_control_mode.flag_control_auto_enabled){
+                //    control_geometry_attitude2(dt);//geometry attitude controller
+                //}
 				/* publish actuator controls */
 				_actuators.control[0] = (PX4_ISFINITE(_att_control(0))) ? _att_control(0) : 0.0f;
 				_actuators.control[1] = (PX4_ISFINITE(_att_control(1))) ? _att_control(1) : 0.0f;

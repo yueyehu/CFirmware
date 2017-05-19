@@ -121,11 +121,11 @@ public:
 	int		start();
 
 private:
-	bool		_task_should_exit;		/**< if true, task should exit */
+    bool	_task_should_exit;		/**< if true, task should exit */
 	int		_control_task;			/**< task handle for task */
 	int		_mavlink_fd;			/**< mavlink fd */
 
-	int		_vehicle_status_sub;		/**< vehicle status subscription */
+    int		_vehicle_status_sub;	/**< vehicle status subscription */
 	int		_ctrl_state_sub;		/**< control state subscription */
 	int		_att_sp_sub;			/**< vehicle attitude setpoint */
 	int		_control_mode_sub;		/**< vehicle control mode subscription */
@@ -133,7 +133,7 @@ private:
 	int		_manual_sub;			/**< notification of manual control updates */
 	int		_arming_sub;			/**< arming status of outputs */
 	int		_local_pos_sub;			/**< vehicle local position */
-	int		_pos_sp_triplet_sub;		/**< position setpoint triplet */
+    int		_pos_sp_triplet_sub;	/**< position setpoint triplet */
 	int		_local_pos_sp_sub;		/**< offboard local position setpoint */
 	int		_global_vel_sp_sub;		/**< offboard global velocity setpoint */
 
@@ -247,6 +247,7 @@ private:
 	math::Vector<3> _vel_err_d;		/**< derivative of current velocity */
     math::Vector<3> _euler_angles;
     math::Vector<3> _omega;
+    math::Vector<3> _prev_dvel_sp;
 
 
 	math::Matrix<3, 3> _R;			/**< rotation matrix from attitude quaternions */
@@ -259,7 +260,8 @@ private:
 	float _takeoff_thrust_sp;
     float _F_l;
     float _e_mass;
-
+    float _real_mass;
+    int   _count;
 	/**
 	 * Update our local parameter cache.
 	 */
@@ -330,6 +332,16 @@ private:
     float estimate_mass_fun(const math::Vector<3> &vel_err,const math::Vector<3> &pos_err,const math::Vector<3> &vel,
                             const math::Vector<3> &dvel,const math::Vector<3> &dvel_sp,const math::Vector<3> &omega,const math::Matrix<3,3> &R,float e_mass,float F_old,float dt);
 
+    /**
+     * geometry position controller
+     */
+    void        control_geometry_position(float dt);
+
+    /**
+     * limit constraint
+     */
+    math::Vector<3>        limit_min_max(const math::Vector<3> &data,float min_d,float max_d);
+    float                  limit_min_max(const float data,float min_d,float max_d);
 	/**
 	 * Select between barometric and global (AMSL) altitudes
 	 */
@@ -397,7 +409,9 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_acc_z_lp(0),
     _takeoff_thrust_sp(0.0f),
     _F_l(0),
-    _e_mass(0)
+    _e_mass(0),
+    _real_mass(1.0f),
+    _count(0)
 {
 	memset(&_vehicle_status, 0, sizeof(_vehicle_status));
 	memset(&_ctrl_state, 0, sizeof(_ctrl_state));
@@ -431,6 +445,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_vel_err_d.zero();
     _euler_angles.zero();
     _omega.zero();
+    _prev_dvel_sp.zero();
 
 	_R.identity();
 
@@ -621,9 +636,9 @@ MulticopterPositionControl::poll_subscriptions()
         _euler_angles = _R.to_euler();
         _yaw = _euler_angles(2);
 
-        _omega(0) = _ctrl_state.roll_rate-(float)sin(_euler_angles(1));
-        _omega(1) = _ctrl_state.pitch_rate*(float)cos(_euler_angles(0))+_ctrl_state.yaw_rate*(float)sin(_euler_angles(0))*(float)cos(_euler_angles(1));
-        _omega(2) = _ctrl_state.pitch_rate*(float)sin(_euler_angles(0))+_ctrl_state.yaw_rate*(float)cos(_euler_angles(0))*(float)cos(_euler_angles(1));
+        _omega(0) = _ctrl_state.roll_rate-_ctrl_state.yaw_rate*sinf(_euler_angles(1));
+        _omega(1) = _ctrl_state.pitch_rate*cosf(_euler_angles(0))+_ctrl_state.yaw_rate*sinf(_euler_angles(0))*cosf(_euler_angles(1));
+        _omega(2) = -_ctrl_state.pitch_rate*sinf(_euler_angles(0))+_ctrl_state.yaw_rate*cosf(_euler_angles(0))*cosf(_euler_angles(1));
 	}
 
 	orb_check(_att_sp_sub, &updated);
@@ -1142,42 +1157,170 @@ void MulticopterPositionControl::control_auto(float dt)
  * Estimate quadrotor's mass
  */
 float
-MulticopterPositionControl::estimate_mass_fun(const math::Vector<3> &vel_err,const math::Vector<3> &pos_err,const math::Vector<3> &vel,
-                        const math::Vector<3> &dvel,const math::Vector<3> &dvel_sp,const math::Vector<3> &omega,const math::Matrix<3,3> &R,float e_mass,float F_old,float dt)
+MulticopterPositionControl::estimate_mass_fun(const math::Vector<3> &vel_err,const math::Vector<3> &pos_err,const math::Vector<3> &vel,const math::Vector<3> &dvel,const math::Vector<3> &dvel_sp,
+                                              const math::Vector<3> &omega,const math::Matrix<3,3> &R,float e_mass,float F_old,float dt)
 {
+    float k_em = 1;
+    //float k_m = 1;
+    float alpha = 0.5;
+    //float c2=0.02;
+    float max_mass = 1.203;
+
     math::Vector<3> gRe3=R.transposed()*math::Vector<3>(0,0,9.81);
     float tmp = dvel(2)+vel(1)*omega(0)-vel(0)*omega(1)-gRe3(2);
     float real_mass = -F_old/tmp;
-    real_mass = 1.0;
+    real_mass = limit_min_max(real_mass,alpha*max_mass,max_mass);
+    _att_sp.real_mass = real_mass;
+    //_real_mass = 1.0;
+    if(_count++ > 200000){
+         _real_mass*=0.9f;
+         _real_mass = _real_mass<(alpha+0.2f)*max_mass?(alpha+0.2f)*max_mass:_real_mass;
+         _count=0;
+    }
     float update_mass;
-
-    float k_em = 1;
-    float k_m = 1;
-    float alpha = 0.5;
-    float c2=0.02;
-    float max_mass = 1.5;
 
     math::Matrix<3,3> omega_hat;
     omega_hat(0,0)=omega_hat(1,1)=omega_hat(2,2)=0;
     omega_hat(0,1)=-omega(2);omega_hat(1,0)=omega(2);
     omega_hat(0,2)=omega(1);omega_hat(2,0)=-omega(1);
-    omega_hat(1,2)=-omega(0);omega_hat(1,2)=omega(0);
+    omega_hat(1,2)=-omega(0);omega_hat(2,1)=omega(0);
 
-    if(real_mass>e_mass){
+
+ /*
+    if(_real_mass>e_mass){
         update_mass = e_mass-k_em*dt*(alpha*max_mass-e_mass)+((gRe3-omega_hat*vel_err-R.transposed()*dvel_sp).emult(vel_err+pos_err*c2)).sum()*dt/k_m;
-    }else if(real_mass<e_mass){
+    }else if(_real_mass<e_mass){
         update_mass = e_mass-k_em*dt*(max_mass-e_mass)+((gRe3-omega_hat*vel_err-R.transposed()*dvel_sp).emult(vel_err+pos_err*c2)).sum()*dt/k_m;
     }
     else{
         update_mass = e_mass;
     }
+*/
+
+    /*
+    if(_prev_dvel_sp(2)<dvel(2)){
+        update_mass = e_mass-k_em*dt*(alpha*max_mass-e_mass)+((gRe3-omega_hat*vel_err-R.transposed()*dvel_sp).emult(vel_err+pos_err*c2)).sum()*dt/k_m;
+    }else if(_prev_dvel_sp(2)>dvel(2)){
+        update_mass = e_mass-k_em*dt*(max_mass-e_mass)+((gRe3-omega_hat*vel_err-R.transposed()*dvel_sp).emult(vel_err+pos_err*c2)).sum()*dt/k_m;
+    }else{
+        update_mass = e_mass;
+    }
+    */
+
+    if(real_mass>e_mass){
+        update_mass = e_mass-k_em*dt*(alpha*max_mass-e_mass);
+    }else if(real_mass<e_mass){
+        update_mass = e_mass-k_em*dt*(max_mass-e_mass);
+    }
+    else{
+        update_mass = e_mass;
+    }
+
     if(update_mass>max_mass){
-        update_mass = max_mass;
+        update_mass = max_mass-0.5f;
     }else if(update_mass<alpha*max_mass){
-        update_mass = alpha*max_mass;
+        update_mass = alpha*max_mass+0.5f;
     }
     return update_mass;
 }
+/**
+ * limit constraint
+ */
+math::Vector<3>
+MulticopterPositionControl::limit_min_max(const math::Vector<3> &data,float min_d,float max_d)
+{
+    math::Vector<3> tmp;
+    for(int i=0;i<3;i++){
+        if(data(i)<min_d){
+            tmp(i)=min_d;
+        }
+        else if(data(i)>max_d){
+            tmp(i)=max_d;
+        }
+        else{
+            tmp(i)=data(i);
+        }
+    }
+    return tmp;
+}
+
+/**
+ * limit constraint
+ */
+float
+MulticopterPositionControl::limit_min_max(const float data,float min_d,float max_d)
+{
+    float tmp;
+    if(data<min_d){
+        tmp=min_d;
+    }
+    else if(data>max_d){
+        tmp=max_d;
+    }
+    else{
+        tmp=data;
+    }
+    return tmp;
+}
+
+void
+MulticopterPositionControl::control_geometry_position(float dt)
+{
+    float k_x=8;
+    float k_v=4.7;
+    //float mass=1.023;
+    float mass = _e_mass;
+    math::Vector<3> pos_err = _pos-_pos_sp;
+    math::Vector<3> vel_err = _vel-_R.transposed()*_vel_sp;
+    math::Vector<3> dvel_sp = (_vel_sp-_vel_sp_prev)/dt;
+
+    pos_err = limit_min_max(pos_err,-0.2,0.2);
+    vel_err = limit_min_max(vel_err,-0.2,0.2);
+    float F_l = -((-pos_err*k_x-vel_err*k_v-(math::Vector<3>(0,0,ONE_G)-dvel_sp)*mass).emult(_R*math::Vector<3>(0,0,1))).sum();
+
+    math::Vector<3> b3_sp = -(-pos_err*k_x-vel_err*k_v-(math::Vector<3>(0,0,ONE_G)-dvel_sp)*mass)/(-pos_err*k_x-vel_err*k_v-(math::Vector<3>(0,0,ONE_G)-dvel_sp)*mass).length();
+    math::Vector<3> b1(sinf(-_att_sp.yaw_body), cosf(_att_sp.yaw_body), 0.0f);
+    //math::Vector<3> b1(0.0f, 1.0f, 0.0f);
+    math::Vector<3> b1_sp = b1%b3_sp;
+    /*
+    if(b3_sp(2)<0.0f){
+        b1_sp = -b1_sp;
+    }
+    */
+    b1_sp.normalize();
+    math::Vector<3> b2_sp = b3_sp%b1_sp;
+
+    math::Matrix<3,3> R;
+    /* fill rotation matrix */
+    for (int i = 0; i < 3; i++) {
+        R(i, 0) = b1_sp(i);
+        R(i, 1) = b2_sp(i);
+        R(i, 2) = b3_sp(i);
+    }
+
+    /* copy rotation matrix to attitude setpoint topic */
+    memcpy(&_att_sp.R_body[0], R.data, sizeof(_att_sp.R_body));
+    _att_sp.R_valid = true;
+
+    /* copy quaternion setpoint to attitude setpoint topic */
+    math::Quaternion q_sp;
+    q_sp.from_dcm(R);
+    memcpy(&_att_sp.q_d[0], &q_sp.data[0], sizeof(_att_sp.q_d));
+
+    /* calculate euler angles, for logging only, must not be used for control */
+    math::Vector<3> euler = R.to_euler();
+    _att_sp.roll_body = euler(0);
+    _att_sp.pitch_body = euler(1);
+    if(F_l<0.0f){
+        F_l = -F_l;
+    }
+    if(F_l>2*mass*ONE_G){
+        F_l = 2*mass*ONE_G;
+    }
+    _F_l=F_l;
+    _att_sp.thrust = F_l/(2*mass*ONE_G);
+}
+
 
 void
 MulticopterPositionControl::task_main()
@@ -1947,11 +2090,16 @@ MulticopterPositionControl::task_main()
 		} else {
 			reset_yaw_sp = true;
 		}
+
+        if(_control_mode.flag_control_auto_enabled){
+            control_geometry_position(dt);
+        }
         math::Vector<3> vel_err = _vel-_vel_sp;
         math::Vector<3> pos_err = _pos-_pos_sp;
-        _att_sp.mass = estimate_mass_fun(vel_err,pos_err,_vel,(_vel-_vel_prev)/dt,math::Vector<3>(0,0,0),_omega,_R,_e_mass,_F_l,dt);
+        _att_sp.mass = estimate_mass_fun(vel_err,pos_err,_vel,math::Vector<3>(_ctrl_state.x_acc,_ctrl_state.y_acc,_ctrl_state.z_acc),
+                                         math::Vector<3>(_local_pos_sp.acc_x,_local_pos_sp.acc_y,_local_pos_sp.acc_z),_omega,_R,_e_mass,_F_l,dt);
         _e_mass = _att_sp.mass;
-
+        _prev_dvel_sp = math::Vector<3>(_local_pos_sp.acc_x,_local_pos_sp.acc_y,_local_pos_sp.acc_z);
         /* update previous velocity for velocity controller D part */
 		_vel_prev = _vel;
 

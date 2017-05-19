@@ -36,3 +36,4 @@ bool disable_mc_yaw_control			# control yaw for mc (used for vtol weather-vane m
 
 bool apply_flaps
 float32 mass
+float32 real_mass

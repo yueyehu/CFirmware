@@ -1521,6 +1521,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 			log_msg.body.log_ATSP.q_y = buf.att_sp.q_d[2];
 			log_msg.body.log_ATSP.q_z = buf.att_sp.q_d[3];
             log_msg.body.log_ATSP.mass = buf.att_sp.mass;
+            log_msg.body.log_ATSP.real_mass = buf.att_sp.real_mass;
 			LOGBUFFER_WRITE_AND_COUNT(ATSP);
 		}
 
