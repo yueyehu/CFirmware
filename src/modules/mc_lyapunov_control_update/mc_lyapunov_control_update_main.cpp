@@ -265,10 +265,10 @@ MulticopterLyapunovControlUpdate::MulticopterLyapunovControlUpdate() :
     _params_handles.k10		= param_find("MC_LYAPUNOV_UP_K10");
     _params_handles.k11		= param_find("MC_LYAPUNOV_UP_K11");
     _params_handles.k12		= param_find("MC_LYAPUNOV_UP_K12");
-    _params_handles.u1_max  = param_find("MC_LYA_U1_MAX");
-    _params_handles.u2_max  = param_find("MC_LYA_U2_MAX");
-    _params_handles.u3_max  = param_find("MC_LYA_U3_MAX");
-    _params_handles.u4_max  = param_find("MC_LYA_U4_MAX");
+    _params_handles.u1_max  = param_find("MC_LYA_U1_UP_MAX");
+    _params_handles.u2_max  = param_find("MC_LYA_U2_UP_MAX");
+    _params_handles.u3_max  = param_find("MC_LYA_U3_UP_MAX");
+    _params_handles.u4_max  = param_find("MC_LYA_U4_UP_MAX");
     
     /* fetch initial parameter values */
     parameters_update(true);
